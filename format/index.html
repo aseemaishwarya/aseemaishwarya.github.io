@@ -220,8 +220,8 @@
         function format(e,preventStash){
             let originalValue = $("#input").val();
             let value = originalValue.replace(/\'/g,"\"");
-                value = value.replace(/:[a-zA-Z-_]+/g, function(m){ return "\""+m.replace(":","")+"\""});
-                value = value.replace(/[a-zA-Z-_]+:/g, function(m){ return "\""+m.replace(":","")+"\":"})
+                value = value.replace(/:[a-zA-Z-_"]+/g, function(m){ return "\""+m.replace(":","").replace(/\"/g,"\\\"")+"\""});
+                value = value.replace(/[a-zA-Z-_"]+:/g, function(m){ return "\""+m.replace(":","").replace(/\"/g,"\\\"")+"\":"})
                 value = value.replace(/=>/g,":");
             var parsedStr = {};
             try{
