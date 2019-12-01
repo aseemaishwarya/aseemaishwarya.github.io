@@ -109,9 +109,23 @@
                 top: 0;
                 height: 100%;
                 width: 50px;
+                cursor: pointer;
                 display: block;
+                text-align: center;
                 background: rgb(188,190,245);
                 background: linear-gradient(90deg, rgba(188,190,245,1) 50%, rgba(137,138,169,1) 100%);
+            }
+            .expander span{
+                border: 1px solid black;
+                border-radius: 7px;
+                padding: 5px;
+                position: relative;
+                top: 10px;
+                font-family: monospace;
+                font-size: 20px;
+            }
+            .expander span:hover{
+                background: rgba(137,138,169,1);
             }
         </style>
     </head>
@@ -136,7 +150,8 @@
             <h3 class="text-center">History</h3>
             <div class="history"></div>
         </div>
-        <div class="expander">
+        <div class="expander" title="Show History">
+            <span>&lt;&lt;</span>
         </div>
     </body>
     <script>
@@ -209,7 +224,13 @@
                 value = value.replace(/:[a-zA-Z-_]+/g, function(m){ return "\""+m.replace(":","")+"\""});
                 value = value.replace(/[a-zA-Z-_]+:/g, function(m){ return "\""+m.replace(":","")+"\":"})
                 value = value.replace(/=>/g,":");
-            var parsedStr = JSON.parse(value);
+            var parsedStr = {};
+            try{
+                parsedStr = JSON.parse(value);
+            }catch(e){
+                $("#output").html("<p class='text-danger text-center'>Not a valid Format!</p>");
+                return false;
+            }
             if(!preventStash){
                 saveStash(originalValue,parsedStr);
             }
