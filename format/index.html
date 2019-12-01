@@ -158,12 +158,11 @@
         let stashDB = null;
         let stashes = [];
         let months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]; 
-        let request = indexedDB.open("rubyhashformatter", 6);//Opening the database
+        let request = indexedDB.open("rubyhashformatter", 1);//Opening the database
         request.onupgradeneeded = e => { //On create or version upgrade - DDL Statements to be executed
             stashDB = e.target.result;
             if (!stashDB.objectStoreNames.contains('requests')) {
                 const stashReq = stashDB.createObjectStore("requests", {keyPath: "id", autoIncrement: true});//Create ObjectStore
-                stashReq.createIndex("date", "date", { unique: true }); //Create Index
             }
             console.log(`upgrade is called database name: ${stashDB.name} version : ${stashDB.version}`);
         }
@@ -266,7 +265,7 @@
         function loadStashes(){
             const tx = stashDB.transaction("requests","readonly");
             const stashRecord = tx.objectStore("requests");
-            const request = stashRecord.openCursor();
+            const request = stashRecord.openCursor(null, 'prev');
             $(".sidebar .history").empty();
             request.onsuccess = e => {
                 const cursor = e.target.result; //or with getAll
@@ -278,7 +277,7 @@
             }
         }
         function addRows(obj){
-            var row = `<div class='cards'><div class="requestString">${obj.request}</div><div>${obj.date}</div><div><button type='button' class='apply btn btn-primary btn-sm' data-req='${obj.request}'>Apply</button><button type='button' class='delete btn btn-secondary btn-sm' data-id='${obj.id}'>Delete</button></div></div>`;
+            var row = `<div class='cards'><div class="requestString">${obj.request}</div><div>${obj.date}</div><div><button type='button' class='apply btn btn-primary btn-sm' data-req='${obj.request}'>Apply</button><button type='button' class='delete btn btn-danger btn-sm' data-id='${obj.id}'>Delete</button></div></div>`;
             $(".sidebar .history").append(row);
         }
         function saveStash(req, res){
