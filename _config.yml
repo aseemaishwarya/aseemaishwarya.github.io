@@ -1,3 +1,4 @@
 theme: jekyll-theme-hacker
 title: Payload Stash
 description: Feel free to use this to format all your ruby hashes
+baseurl: /format
