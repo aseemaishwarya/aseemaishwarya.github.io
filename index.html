@@ -1,0 +1,115 @@
+<html>
+    <head>
+        <title>Hash Formatter</title>
+        <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css"/>
+        <script src="https://code.jquery.com/jquery-3.4.1.min.js" integrity="sha256-CSXorXvZcTkaix6Yvo6HppcZGetbYMGWSFlBw8HfCJo=" crossorigin="anonymous"></script>
+        <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js"></script>
+        <style>
+            .container .jumbotron{
+                padding: 30px;
+            }
+            .container .vertices{
+                float:left;
+                width: 40%;
+            }
+            .container .vertices.actions{
+                text-align: center;
+                width: 20%;
+            }
+            .container .vertices textarea{
+                width: 100%;
+                height: 500px;
+            }
+            .container .vertices #output{
+                border: 1px solid black;
+                height: 500px;
+                overflow: auto;
+            }
+            .container .vertices #output .highlight{
+                background-color: lightgray;
+            }
+            .container .vertices  #output .collapsible{
+                cursor: pointer;
+            }
+            .container .vertices #output .attr_blank{
+                color: blue;
+                font-weight: 900;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="jumbotron">
+                <h1>Ruby Hash Formatter</h1>
+                <p>Beautify your Ruby Hash</p>
+            </div>
+            <div class="vertices">
+                <textarea rows="20" cols="100" id="input"></textarea>
+            </div>
+            <div class="vertices actions">
+                <button type="button" class="btn btn-primary" id="format">Format</button>
+            </div>
+            <div class="vertices">
+                <div id="output"></div>
+            </div>
+    </body>
+    <script>
+        $(document).ready(function(){
+            $("#format").on("click", function(){
+                var value = $("#input").val();
+                    value = value.replace(/\'/g,"\"");
+                    value = value.replace(/:[a-zA-Z-_]+/g, function(m){ return "\""+m.replace(":","")+"\""});
+                    value = value.replace(/[a-zA-Z-_]+:/g, function(m){ return "\""+m.replace(":","")+"\":"})
+                    value = value.replace(/=>/g,":");
+                var parsedStr = JSON.parse(value);
+                var output = "";
+                var level = 0;
+                for(var key in parsedStr){
+                    output += createEle(key,parsedStr[key],level);
+                }
+                $("#output").html("{" + output + "}");
+                $("#output div:not(.arrayEle)").hover(function(e){
+                    e.stopPropagation();
+                    $(this).addClass("highlight")
+                }, function(e){
+                    e.stopPropagation();
+                    $("#output .highlight").removeClass("highlight")
+                });
+                $("#output div:not(.arrayEle):not(.highlight)").on("mousemove", function(e){
+                    e.stopPropagation();
+                    $(this).addClass("highlight");
+                });
+                $("#output .collapsible").click(function(e){
+                    e.stopPropagation();
+                    var collapsed = $(this).hasClass("collapsed");
+                    $(this).toggleClass("collapsed",!collapsed);
+                    $(this).siblings(".attr_value").toggleClass("d-none",!collapsed);
+                    $(this).siblings(".attr_blank").toggleClass("d-none",collapsed);
+                });
+            });
+            function createEle(key, value, level){
+                var collapseClass = "";
+                if(typeof value == "string"){
+                    value = value;
+                }else if(Array.isArray(value)){
+                    //value = "[<div class='px-"+level+"'>"+value+"</div>]";
+                    var a = "";
+                    for(var val in value){
+                        a += "<div class='arrayEle px-5'>"+value[val]+(val < value.length-1? ",": "")+"</div>";
+                    }
+                    value = "[" + a + "]";
+                    collapseClass = "collapsible"
+                }else if(typeof value == "object"){
+                    var a = "";
+                    for(var val in value){
+                       a += createEle(val, value[val], level+5);
+                    }
+                    value = "{" + a + "}";
+                    collapseClass = "collapsible"
+                }
+                return "<div class='px-5'><span class='attr_key font-weight-bold "+collapseClass+"'>"+key+":</span> <span class='attr_value'>"+value+"</span><span class='attr_blank d-none'>...</span></div>";
+            }
+        });
+        //{:sdavv => "vsdvda", :fad => "vsad", :vsda => {"vsdv" => "vasdva", "vsad" => {"vavs":"bdf", "casdv":["gaf", "vfa", "Vfsav"]}, :fad => "vsad"}}
+    </script>
+</html>
