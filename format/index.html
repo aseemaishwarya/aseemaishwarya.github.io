@@ -5,6 +5,13 @@
         <script src="https://code.jquery.com/jquery-3.4.1.min.js" integrity="sha256-CSXorXvZcTkaix6Yvo6HppcZGetbYMGWSFlBw8HfCJo=" crossorigin="anonymous"></script>
         <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js"></script>
         <style>
+            body{
+                overflow: hidden;
+            }
+            .container{
+                overflow: auto;
+                height: 100%;
+            }
             .container .jumbotron{
                 padding: 30px;
             }
@@ -35,6 +42,77 @@
                 color: blue;
                 font-weight: 900;
             }
+            .sidebar{
+                position: absolute;
+                height: 100%;
+                width: 0;
+                right: 0;
+                top: 0;
+                background-color: #bcbef5;/*898aa9*/
+            }
+            .sidebar .history{
+                height: calc(100% - 35px);
+                overflow: auto;
+            }
+            .sidebar .close {
+                position: absolute;
+                right: 200px;
+                top: 0;
+                width: 20px;
+                height: 20px;
+                opacity: 1;
+                background: #000;
+            }
+            .sidebar .close:hover {
+                opacity: 0.3;
+            }
+            .sidebar .close:before, .sidebar .close:after {
+                position: absolute;
+                left: 10px;
+                content: ' ';
+                height: 16px;
+                width: 2px;
+                background-color: #FFF;
+            }
+            .sidebar .close:before {
+                transform: rotate(45deg);
+            }
+            .sidebar .close:after {
+                transform: rotate(-45deg);
+            }
+            .sidebar .cards{
+                border: 1px solid black;
+                border-radius: 3px;
+                margin: 5px;
+                font-size: 14px;
+            }
+            .sidebar .cards .requestString{
+                max-height: 40px;
+                overflow: hidden;
+            }
+            .sidebar .cards:hover{
+                background-color: #FFF;/*bcbef5*/
+            }
+            .sidebar .cards:hover .requestString{
+                max-height: 100px;
+            }
+            .sidebar .cards .apply, .sidebar .cards .delete{
+                display:none;
+                float:right;
+            }
+            .sidebar .cards:hover .apply, .sidebar .cards:hover .delete{
+                display: inline-block;
+            }
+            .expander{
+                position: absolute;
+                right: 0;
+                top: 0;
+                height: 100%;
+                width: 50px;
+                display: block;
+                background: rgb(188,190,245);
+                background: linear-gradient(90deg, rgba(188,190,245,1) 50%, rgba(137,138,169,1) 100%);
+            }
         </style>
     </head>
     <body>
@@ -52,64 +130,150 @@
             <div class="vertices">
                 <div id="output"></div>
             </div>
+        </div>
+        <div class="sidebar">
+            <span class="close d-none"></span>
+            <h3 class="text-center">History</h3>
+            <div class="history"></div>
+        </div>
+        <div class="expander">
+        </div>
     </body>
     <script>
-        $(document).ready(function(){
-            $("#format").on("click", function(){
-                var value = $("#input").val();
-                    value = value.replace(/\'/g,"\"");
-                    value = value.replace(/:[a-zA-Z-_]+/g, function(m){ return "\""+m.replace(":","")+"\""});
-                    value = value.replace(/[a-zA-Z-_]+:/g, function(m){ return "\""+m.replace(":","")+"\":"})
-                    value = value.replace(/=>/g,":");
-                var parsedStr = JSON.parse(value);
-                var output = "";
-                var level = 0;
-                for(var key in parsedStr){
-                    output += createEle(key,parsedStr[key],level);
-                }
-                $("#output").html("{" + output + "}");
-                $("#output div:not(.arrayEle)").hover(function(e){
-                    e.stopPropagation();
-                    $(this).addClass("highlight")
-                }, function(e){
-                    e.stopPropagation();
-                    $("#output .highlight").removeClass("highlight")
-                });
-                $("#output div:not(.arrayEle):not(.highlight)").on("mousemove", function(e){
-                    e.stopPropagation();
-                    $(this).addClass("highlight");
-                });
-                $("#output .collapsible").click(function(e){
-                    e.stopPropagation();
-                    var collapsed = $(this).hasClass("collapsed");
-                    $(this).toggleClass("collapsed",!collapsed);
-                    $(this).siblings(".attr_value").toggleClass("d-none",!collapsed);
-                    $(this).siblings(".attr_blank").toggleClass("d-none",collapsed);
-                });
-            });
-            function createEle(key, value, level){
-                var collapseClass = "";
-                if(typeof value == "string"){
-                    value = value;
-                }else if(Array.isArray(value)){
-                    //value = "[<div class='px-"+level+"'>"+value+"</div>]";
-                    var a = "";
-                    for(var val in value){
-                        a += "<div class='arrayEle px-5'>"+value[val]+(val < value.length-1? ",": "")+"</div>";
-                    }
-                    value = "[" + a + "]";
-                    collapseClass = "collapsible"
-                }else if(typeof value == "object"){
-                    var a = "";
-                    for(var val in value){
-                       a += createEle(val, value[val], level+5);
-                    }
-                    value = "{" + a + "}";
-                    collapseClass = "collapsible"
-                }
-                return "<div class='px-5'><span class='attr_key font-weight-bold "+collapseClass+"'>"+key+":</span> <span class='attr_value'>"+value+"</span><span class='attr_blank d-none'>...</span></div>";
+        let stashDB = null;
+        let stashes = [];
+        let months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]; 
+        let request = indexedDB.open("rubyhashformatter", 6);//Opening the database
+        request.onupgradeneeded = e => { //On create or version upgrade - DDL Statements to be executed
+            stashDB = e.target.result;
+            if (!stashDB.objectStoreNames.contains('requests')) {
+                const stashReq = stashDB.createObjectStore("requests", {keyPath: "id", autoIncrement: true});//Create ObjectStore
+                stashReq.createIndex("date", "date", { unique: true }); //Create Index
             }
+            console.log(`upgrade is called database name: ${stashDB.name} version : ${stashDB.version}`);
+        }
+        request.onsuccess = e => {
+            stashDB = e.target.result;
+            loadStashes();
+            console.log(`success is called database name: ${stashDB.name} version : ${stashDB.version}`);
+        }
+        request.onerror = e => {
+            console.log(`error: ${e.target.error} was found `);
+        }
+        $(document).ready(function(){
+            $("#format").on("click", format);
+            $("#output").on("mousein","div:not(.arrayEle)",function(e){
+                e.stopPropagation();
+                $(this).addClass("highlight")
+            });
+            $("#output").on("mouseout","div:not(.arrayEle)",function(e){
+                e.stopPropagation();
+                $("#output .highlight").removeClass("highlight")
+            });
+            $("#output").on("mousemove", "div:not(.arrayEle):not(.highlight)",function(e){
+                e.stopPropagation();
+                $(this).addClass("highlight");
+            });
+            $("#output").on("click",".collapsible",function(e){
+                e.stopPropagation();
+                var collapsed = $(this).hasClass("collapsed");
+                $(this).toggleClass("collapsed",!collapsed);
+                $(this).siblings(".attr_value").toggleClass("d-none",!collapsed);
+                $(this).siblings(".attr_blank").toggleClass("d-none",collapsed);
+            });
+            $(".sidebar").on("click",".apply",function(e){
+                $("#input").val($(this).data("req"));
+                format("", true);
+            });
+            $(".sidebar").on("click",".delete",function(e){
+                const id = $(this).data("id");
+                const tx = stashDB.transaction("requests","readwrite");
+                const objectStore = tx.objectStore("requests");
+                objectStore.delete(id);
+                $(this).closest(".cards").remove();
+            });
+            $(".expander").on("click",function(){
+                $(this).addClass("d-none");
+                $(".sidebar").animate({width: "200px"});
+                $(".sidebar .close").removeClass("d-none");
+            });
+            $(".sidebar .close").on("click",function(){
+                $(this).addClass("d-none");
+                $(".sidebar").animate({width: "0"});
+                $(".expander").removeClass("d-none");
+            });
         });
+        function format(e,preventStash){
+            let originalValue = $("#input").val();
+            let value = originalValue.replace(/\'/g,"\"");
+                value = value.replace(/:[a-zA-Z-_]+/g, function(m){ return "\""+m.replace(":","")+"\""});
+                value = value.replace(/[a-zA-Z-_]+:/g, function(m){ return "\""+m.replace(":","")+"\":"})
+                value = value.replace(/=>/g,":");
+            var parsedStr = JSON.parse(value);
+            if(!preventStash){
+                saveStash(originalValue,parsedStr);
+            }
+            var output = "";
+            var level = 0;
+            for(var key in parsedStr){
+                output += createEle(key,parsedStr[key],level);
+            }
+            $("#output").html("{" + output + "}");
+        }
+        function createEle(key, value, level){
+            var collapseClass = "";
+            if(typeof value == "string"){
+                value = value;
+            }else if(Array.isArray(value)){
+                //value = "[<div class='px-"+level+"'>"+value+"</div>]";
+                var a = "";
+                for(var val in value){
+                    a += "<div class='arrayEle px-5'>"+value[val]+(val < value.length-1? ",": "")+"</div>";
+                }
+                value = "[" + a + "]";
+                collapseClass = "collapsible"
+            }else if(typeof value == "object"){
+                var a = "";
+                for(var val in value){
+                    a += createEle(val, value[val], level+5);
+                }
+                value = "{" + a + "}";
+                collapseClass = "collapsible"
+            }
+            return "<div class='px-5'><span class='attr_key font-weight-bold "+collapseClass+"'>"+key+":</span> <span class='attr_value'>"+value+"</span><span class='attr_blank d-none'>...</span></div>";
+        }
+        function loadStashes(){
+            const tx = stashDB.transaction("requests","readonly");
+            const stashRecord = tx.objectStore("requests");
+            const request = stashRecord.openCursor();
+            $(".sidebar .history").empty();
+            request.onsuccess = e => {
+                const cursor = e.target.result; //or with getAll
+                if (cursor) {
+                    console.log(`Title: ${cursor.key} Text: ${cursor.value.name} `);
+                    addRows(cursor.value);
+                    cursor.continue();
+                }
+            }
+        }
+        function addRows(obj){
+            var row = `<div class='cards'><div class="requestString">${obj.request}</div><div>${obj.date}</div><div><button type='button' class='apply btn btn-primary btn-sm' data-req='${obj.request}'>Apply</button><button type='button' class='delete btn btn-secondary btn-sm' data-id='${obj.id}'>Delete</button></div></div>`;
+            $(".sidebar .history").append(row);
+        }
+        function saveStash(req, res){
+            let record = {};
+            record.request = req;
+            record.parsedReq = res;
+            let d = new Date();
+            record.date =  d.getDate() + "-" + months[d.getMonth()] + " " + d.getHours() + ":" + d.getMinutes();
+            //let record = $("#personal_details").serializeObject();
+            //console.log(record);
+            const tx = stashDB.transaction("requests", "readwrite");
+            tx.onerror = e => alert( ` Error! ${e.target.error}  `);
+            const stashRecord = tx.objectStore("requests")
+            stashRecord.add(record);
+            loadStashes();
+        }
         //{:sdavv => "vsdvda", :fad => "vsad", :vsda => {"vsdv" => "vasdva", "vsad" => {"vavs":"bdf", "casdv":["gaf", "vfa", "Vfsav"]}, :fad => "vsad"}}
     </script>
 </html>
